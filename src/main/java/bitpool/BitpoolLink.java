@@ -66,7 +66,7 @@ public class BitpoolLink {
 				child.clearChildren();
 				BitpoolConn conn = new BitpoolConn(getMe(), child);
 				conn.init();
-			} else if (child.getAction() == null){
+			} else if (!child.getName().equals("defs") && child.getAction() == null) {
 				node.removeChild(child);
 			}
 		}
