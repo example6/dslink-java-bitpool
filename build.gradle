@@ -1,0 +1,45 @@
+apply plugin: 'application'
+apply plugin: 'findbugs'
+apply plugin: 'java'
+
+mainClassName = 'bitpool.Main'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    }
+}
+
+
+dependencies {
+
+    compile 'org.iot-dsa:dslink:0.10.2'
+    compile 'org.iot-dsa:historian:0.10.2'
+    compile 'com.sun.jersey:jersey-client:1.19'
+    compile 'com.sun.jersey.contribs:jersey-multipart:1.19'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.6.1'
+    compile 'io.swagger:swagger-annotations:1.5.3'
+}
+
+
+run {
+    args System.getProperty("exec.args", "").split()
+    workingDir project.buildDir
+}
+
+
+tasks.withType(FindBugs) {
+	//classes = classes.filter {
+    //    !it.path.contains(new File('com/serotonin').path)
+    //}
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
+
+applicationDistribution.from new File(project.projectDir, "dslink.json")
