@@ -16,6 +16,8 @@ public class Main extends DSLinkHandler {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 	
+	private DSLink link;
+	
 	public static void main(String[] args) {
 		//args = new String[] { "-b", "http://localhost:8080/conn", "-l", "debug" };
 		DSLinkFactory.start(args, new Main());
@@ -29,6 +31,8 @@ public class Main extends DSLinkHandler {
 	@Override
 	public void onResponderInitialized(DSLink link) {
 		LOGGER.info("Initialized");
+		
+		this.link = link;
 		
 		NodeManager manager = link.getNodeManager();
         Node superRoot = manager.getNode("/").getNode();
@@ -52,6 +56,36 @@ public class Main extends DSLinkHandler {
         }
         
         BitpoolLink.start(superRoot);
+	}
+	
+	@Override
+	public Node onSubscriptionFail(String path) {
+		NodeManager manager = link.getNodeManager();
+        String[] split = NodeManager.splitPath(path);
+        Node superRoot = manager.getSuperRoot();
+        Node n = superRoot;
+        int i = 0;
+        while (i < split.length) {        	
+        	n = n.getChild(split[i]);
+        	n.getListener().postListUpdate();
+        	i++;
+        }
+        return n;
+	}
+	
+	@Override
+	public Node onInvocationFail(final String path) {
+		NodeManager manager = link.getNodeManager();
+        String[] split = NodeManager.splitPath(path);
+        Node superRoot = manager.getSuperRoot();
+        Node n = superRoot;
+        int i = 0;
+        while (i < split.length) {        	
+        	n = n.getChild(split[i]);
+        	n.getListener().postListUpdate();
+        	i++;
+        }
+        return n;
 	}
 
 }
