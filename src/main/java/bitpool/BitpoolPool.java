@@ -29,7 +29,29 @@ public class BitpoolPool {
 	
 	void init() {
 		
-		loadStations();
+		if (conn.node.getAttribute("Load data manually").getBool()) {
+			
+			Action act = new Action(Permission.READ, new Handler<ActionResult>() {
+				public void handle(ActionResult event) {
+					remove();
+				}
+			});
+			node.createChild("unload").setAction(act).build().setSerializable(false);
+			
+			act = new Action(Permission.READ, new Handler<ActionResult>(){
+				public void handle(ActionResult event) {
+					loadStations();
+				}
+			});
+			node.createChild("load all stations").setAction(act).build().setSerializable(false);
+			
+			act = new Action(Permission.READ, new LoadStationHandler());
+			act.addParameter(new Parameter("Station id", ValueType.NUMBER));
+			node.createChild("load station").setAction(act).build().setSerializable(false);
+			
+		} else {
+			loadStations();
+		}
 		
 		Action act = new Action(Permission.READ, new DeleteHandler());
 		node.createChild("delete").setAction(act).build().setSerializable(false);
@@ -115,6 +137,22 @@ public class BitpoolPool {
 		}
 	}
 	
+	private class LoadStationHandler implements Handler<ActionResult> {
+		public void handle(ActionResult event) {
+			int id = event.getParameter("Station id", ValueType.NUMBER).getNumber().intValue();
+			try {
+				BitPoolServerModelBitStationEntity station = conn.poolsApi.poolsGetStation(node.getAttribute("Pool key").getString(), id);
+				if (node.getChild(station.getStationName()) == null) {
+					Node child = node.createChild(station.getStationName()).build();
+					BitpoolStation bs = makeStationObj(station, child);
+					bs.init();
+				}
+			} catch (ApiException e) {
+				// TODO Auto-generated catch block
+			}
+		}
+	}
+	
 	private void loadStations() {
 		try {
 			List<BitPoolServerModelBitStationEntity> stations = conn.poolsApi.poolsGetStations(node.getAttribute("Pool key").getString());
@@ -143,6 +181,26 @@ public class BitpoolPool {
 		child.setAttribute("Registration date", new Value(conn.link.safeToString(station.getRegistrationDate())));
 		
 		return new BitpoolStation(getMe(), child);
+	}
+	
+	void restoreLastSession() {
+		init();
+		if (node.getChildren() == null) return;
+		for (Node child: node.getChildren().values()) {
+			Value id = child.getAttribute("Station id");
+			if (id != null) {
+				try {
+					BitPoolServerModelBitStationEntity station = conn.poolsApi.poolsGetStation(node.getAttribute("Pool key").getString(), id.getNumber().intValue());
+					BitpoolStation bs = makeStationObj(station, child);
+					bs.restoreLastSession();
+				} catch (ApiException e) {
+					// TODO Auto-generated catch block
+					node.removeChild(child);
+				}
+			} else if (child.getAction() == null && !child.isHidden()) {
+				node.removeChild(child);
+			}
+		}
 	}
 
 	private BitpoolPool getMe() {

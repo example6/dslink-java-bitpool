@@ -51,6 +51,7 @@ public class BitpoolLink {
 		act.addParameter(new Parameter("Organisation", ValueType.STRING).setPlaceHolder("Bitpool Demonstration"));
 		act.addParameter(new Parameter("Place", ValueType.STRING).setPlaceHolder("office"));
 		act.addParameter(new Parameter("Polling interval", ValueType.NUMBER, new Value(5)));
+		act.addParameter(new Parameter("Load data manually", ValueType.BOOL, new Value(false)));
 		node.createChild("add connection").setAction(act).build().setSerializable(false);
 		
 	}
@@ -59,13 +60,20 @@ public class BitpoolLink {
 		if (node.getChildren() == null) return;
 		for (Node child: node.getChildren().values()) {
 			Value email = child.getAttribute("Email");
+			Value pass = child.getAttribute("Password");
 			Value org = child.getAttribute("Organisation");
 			Value place = child.getAttribute("Place");
 			Value interval = child.getAttribute("Polling interval");
-			if (email!=null && org!=null && place!=null && interval!=null) {
-				child.clearChildren();
-				BitpoolConn conn = new BitpoolConn(getMe(), child);
-				conn.init();
+			Value manLoad = child.getAttribute("Load data manually");
+			if (email!=null && pass!=null && org!=null && place!=null && interval!=null && manLoad!=null) {
+				if (manLoad.getBool()) {
+					BitpoolConn conn = new BitpoolConn(getMe(), child);
+					conn.restoreLastSession();
+				} else {
+					child.clearChildren();
+					BitpoolConn conn = new BitpoolConn(getMe(), child);
+					conn.init();
+				}
 			} else if (!child.getName().equals("defs") && child.getAction() == null) {
 				node.removeChild(child);
 			}
@@ -80,15 +88,17 @@ public class BitpoolLink {
 			String org = event.getParameter("Organisation", ValueType.STRING).getString();
 			String place = event.getParameter("Place", ValueType.STRING).getString();
 			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
+			boolean manLoad = event.getParameter("Load data manually", ValueType.BOOL).getBool();
 			
 			String name = StringUtils.filterBannedChars(email);
 			
 			Node child = node.createChild(name).build();
 			child.setAttribute("Email", new Value(email));
-			//child.setAttribute("Password", new Value(pass));
+			child.setAttribute("Password", new Value(pass));
 			child.setAttribute("Organisation", new Value(org));
 			child.setAttribute("Place", new Value(place));
 			child.setAttribute("Polling interval", new Value(interval));
+			child.setAttribute("Load data manually", new Value(manLoad));
 			
 			BitpoolConn conn = new BitpoolConn(getMe(), child);
 			conn.login(email, pass, org, place);

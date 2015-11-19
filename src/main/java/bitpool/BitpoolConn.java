@@ -60,11 +60,24 @@ public class BitpoolConn {
         if (anode == null) node.createChild("remove").setAction(act).build().setSerializable(false);
         else anode.setAction(act);
         
-        act = new Action(Permission.READ, new UpdateIntervalHandler());
-        act.addParameter(new Parameter("Polling interval", ValueType.NUMBER, node.getAttribute("Polling interval")));
-        anode = node.getChild("edit polling interval");
-        if (anode == null) node.createChild("edit polling interval").setAction(act).build().setSerializable(false);
-        else anode.setAction(act);
+        act = new Action(Permission.READ, new LoginHandler());
+		act.addParameter(new Parameter("Email", ValueType.STRING, node.getAttribute("Email")));
+		Parameter param = new Parameter("Password", ValueType.STRING, node.getAttribute("Password"));
+		param.setEditorType(EditorType.PASSWORD);
+		act.addParameter(param);
+		act.addParameter(new Parameter("Organisation", ValueType.STRING, node.getAttribute("Organisation")));
+		act.addParameter(new Parameter("Place", ValueType.STRING, node.getAttribute("Place")));
+		act.addParameter(new Parameter("Polling interval", ValueType.NUMBER, node.getAttribute("Polling interval")));
+		act.addParameter(new Parameter("Load data manually", ValueType.BOOL, node.getAttribute("Load data manually")));
+		anode = node.getChild("edit");
+		if (anode == null) node.createChild("edit").setAction(act).build().setSerializable(false);
+		else anode.setAction(act);
+        
+//        act = new Action(Permission.READ, new UpdateIntervalHandler());
+//        act.addParameter(new Parameter("Polling interval", ValueType.NUMBER, node.getAttribute("Polling interval")));
+//        anode = node.getChild("edit polling interval");
+//        if (anode == null) node.createChild("edit polling interval").setAction(act).build().setSerializable(false);
+//        else anode.setAction(act);
 		
 		if (node.getAttribute("API key") != null) {
 			String apiKey = node.getAttribute("API key").getString();
@@ -89,12 +102,30 @@ public class BitpoolConn {
 				}
 			}
 			
-			node.removeChild("login");
+			//node.removeChild("login");
 			
 			statNode.setValue(new Value("Logged In"));
 			
-			loadPools();
-			
+			if (node.getAttribute("Load data manually").getBool()) {
+				act = new Action(Permission.READ, new Handler<ActionResult>() {
+					public void handle(ActionResult event) {
+						loadPools();
+					}
+				});
+				anode  = node.getChild("load all pools");
+				if (anode == null) node.createChild("load all pools").setAction(act).build().setSerializable(false);
+				else anode.setAction(act);
+				
+				act = new Action(Permission.READ, new LoadPoolHandler());
+				act.addParameter(new Parameter("Pool key", ValueType.STRING));
+				anode = node.getChild("load pool");
+				if (anode == null) node.createChild("load pool").setAction(act).build().setSerializable(false);
+				else anode.setAction(act);
+				
+			} else {
+				loadPools();
+			}
+				
 			act = new Action(Permission.READ, new LogoutHandler());
 			anode = node.getChild("logout");
 			if (anode == null) node.createChild("logout").setAction(act).build().setSerializable(false);
@@ -113,18 +144,6 @@ public class BitpoolConn {
 			
 			node.removeChild("logout");
 			node.removeChild("create pool");
-			
-			act = new Action(Permission.READ, new LoginHandler());
-			act.addParameter(new Parameter("Email", ValueType.STRING, node.getAttribute("Email")));
-			Parameter param = new Parameter("Password", ValueType.STRING);
-			param.setEditorType(EditorType.PASSWORD);
-			act.addParameter(param);
-			act.addParameter(new Parameter("Organisation", ValueType.STRING, node.getAttribute("Organisation")));
-			act.addParameter(new Parameter("Place", ValueType.STRING, node.getAttribute("Place")));
-			act.addParameter(new Parameter("Polling interval", ValueType.NUMBER, node.getAttribute("Polling interval")));
-			anode = node.getChild("login");
-			if (anode == null) node.createChild("login").setAction(act).build().setSerializable(false);
-			else anode.setAction(act);
 			
 		}
 		
@@ -165,16 +184,18 @@ public class BitpoolConn {
 			String org = event.getParameter("Organisation", ValueType.STRING).getString();
 			String place = event.getParameter("Place", ValueType.STRING).getString();
 			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
+			boolean manLoad = event.getParameter("Load data manually", ValueType.BOOL).getBool();
 			
 			String name = StringUtils.filterBannedChars(email);
 			
 			if (!name.equals(node.getName())) {
 				Node child = link.node.createChild(name).build();
 				child.setAttribute("Email", new Value(email));
-				//child.setAttribute("Password", new Value(pass));
+				child.setAttribute("Password", new Value(pass));
 				child.setAttribute("Organisation", new Value(org));
 				child.setAttribute("Place", new Value(place));
 				child.setAttribute("Polling interval", new Value(interval));
+				child.setAttribute("Load data manually", new Value(manLoad));
 				
 				BitpoolConn conn = new BitpoolConn(link, child);
 				conn.login(email, pass, org, place);
@@ -183,25 +204,43 @@ public class BitpoolConn {
 				return;
 			}
 			
-			node.setAttribute("Email", new Value(email));
-			//node.setAttribute("Password", new Value(pass));
-			node.setAttribute("Organisation", new Value(org));
-			node.setAttribute("Place", new Value(place));
-			node.setAttribute("Polling interval", new Value(interval));
-			
-			login(email, pass, org, place);
-			init();
+			if (new Value(email).equals(node.getAttribute("Email")) &&
+			new Value(pass).equals(node.getAttribute("Password")) &&
+			new Value(org).equals(node.getAttribute("Organisation"))) {
+				if (!new Value(manLoad).equals(node.getAttribute("Load data manually"))) {
+					node.setAttribute("Load data manually", new Value(manLoad));
+					clear();
+				}
+				if (!new Value(place).equals(node.getAttribute("Place"))) {
+					node.setAttribute("Place", new Value(place));
+					login(email, pass, org, place);
+				}
+				node.setAttribute("Polling interval", new Value(interval));
+				init();
+			} else {
+				logout();
+				
+				node.setAttribute("Email", new Value(email));
+				node.setAttribute("Password", new Value(pass));
+				node.setAttribute("Organisation", new Value(org));
+				node.setAttribute("Place", new Value(place));
+				node.setAttribute("Polling interval", new Value(interval));
+				node.setAttribute("Load data manually", new Value(manLoad));
+				
+				login(email, pass, org, place);
+				init();
+			}
 			
 		}
 	}
 	
-	private class UpdateIntervalHandler implements Handler<ActionResult> {
-		public void handle(ActionResult event) {
-			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
-			node.setAttribute("Polling interval", new Value(interval));
-			init();
-		}
-	}
+//	private class UpdateIntervalHandler implements Handler<ActionResult> {
+//		public void handle(ActionResult event) {
+//			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
+//			node.setAttribute("Polling interval", new Value(interval));
+//			init();
+//		}
+//	}
 	
 	private class LogoutHandler implements Handler<ActionResult> {
 		public void handle(ActionResult event) {
@@ -227,6 +266,10 @@ public class BitpoolConn {
 		statNode.setValue(new Value("Logged out"));
 		//apiClient.setApiKeyPrefix(null);
 		apiClient.setApiKey(null);
+		clear();
+	}
+	
+	private void clear() {
 		if (node.getChildren() == null) return;
 		for (Node child: node.getChildren().values()) {
 			if (child != statNode && child.getAction() == null) node.removeChild(child);
@@ -258,6 +301,23 @@ public class BitpoolConn {
 		} catch (ApiException e) {
 			LOGGER.debug("", e);
 			// TODO Auto-generated catch block
+		}
+	}
+	
+	private class LoadPoolHandler implements Handler<ActionResult> {
+		public void handle(ActionResult event) {
+			String key = event.getParameter("Pool key", ValueType.STRING).getString();
+			try {
+				BitPoolServerModelBitPoolEntity pool = poolsApi.poolsGetPool(key);
+				if (node.getChild(pool.getName()) == null) {
+					Node child = node.createChild(pool.getName()).build();
+					BitpoolPool bp = makePoolObj(pool, child);
+					bp.init();
+				}
+			} catch (ApiException e) {
+				// TODO Auto-generated catch block
+				LOGGER.debug("", e);
+			}
 		}
 	}
 	
@@ -300,6 +360,27 @@ public class BitpoolConn {
 		child.setAttribute("Time zone", new Value(pool.getTimeZone()));
 		
 		return new BitpoolPool(getMe(), child);
+	}
+	
+	void restoreLastSession() {
+		init();
+		if (node.getChildren() == null) return;
+		for (Node child: node.getChildren().values()) {
+			Value key = child.getAttribute("Pool key");
+			if (key != null) {
+				try {
+					BitPoolServerModelBitPoolEntity pool = poolsApi.poolsGetPool(key.getString());
+					BitpoolPool bp = makePoolObj(pool, child);
+					bp.restoreLastSession();
+				} catch (ApiException e) {
+					// TODO Auto-generated catch block
+					LOGGER.debug("", e);
+					node.removeChild(child);
+				}
+			} else if (child.getAction() == null && !child.isHidden()) {
+				node.removeChild(child);
+			}
+		}
 	}
 
 	BitpoolConn getMe() {

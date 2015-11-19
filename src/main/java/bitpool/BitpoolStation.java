@@ -40,7 +40,29 @@ public class BitpoolStation {
 	
 	void init() {
 		
-		loadStreams();
+		if (pool.conn.node.getAttribute("Load data manually").getBool()) {
+			
+			Action act = new Action(Permission.READ, new Handler<ActionResult>() {
+				public void handle(ActionResult event) {
+					remove();
+				}
+			});
+			node.createChild("unload").setAction(act).build().setSerializable(false);
+			
+			act = new Action(Permission.READ, new Handler<ActionResult>(){
+				public void handle(ActionResult event) {
+					loadStreams();
+				}
+			});
+			node.createChild("load all streams").setAction(act).build().setSerializable(false);
+			
+			act = new Action(Permission.READ, new LoadStreamHandler());
+			act.addParameter(new Parameter("Stream key", ValueType.STRING));
+			node.createChild("load stream").setAction(act).build().setSerializable(false);
+			
+		} else {
+			loadStreams();
+		}
 		
 		Action act = new Action(Permission.READ, new DeleteHandler());
 		node.createChild("delete").setAction(act).build().setSerializable(false);
@@ -112,6 +134,22 @@ public class BitpoolStation {
 		}
 	}
 	
+	private class LoadStreamHandler implements Handler<ActionResult> {
+		public void handle(ActionResult event) {
+			String key = event.getParameter("Stream key", ValueType.STRING).getString();
+			try {
+				BitPoolServerModelBitStreamEntity stream = streamsApi.streamsGetRegisteredBitStream(key);
+				ValueType vt = (stream.getDataType() == io.swagger.client.model.BitPoolServerModelBitStreamEntity.DataTypeEnum.DECIMAL) ? ValueType.NUMBER : ValueType.STRING;
+				Node child = node.createChild(stream.getName()).setValueType(vt).build();
+				BitpoolStream bs = makeStreamObj(stream, child);
+				bs.init();
+			} catch (ApiException e) {
+				// TODO Auto-generated catch block
+				LOGGER.debug("", e);
+			}
+		}
+	}
+	
 	private void loadStreams() {
 		String poolKey = node.getAttribute("Pool key").getString();
 		int stationId = node.getAttribute("Station id").getNumber().intValue();
@@ -157,6 +195,27 @@ public class BitpoolStation {
 		child.setAttribute("Data type", new Value(stream.getDataType().toString()));
 		
 		return new BitpoolStream(getMe(), child);
+	}
+	
+	void restoreLastSession() {
+		init();
+		if (node.getChildren() == null) return;
+		for (Node child: node.getChildren().values()) {
+			Value key = child.getAttribute("Stream key");
+			if (key != null) {
+				try {
+					BitPoolServerModelBitStreamEntity stream = streamsApi.streamsGetRegisteredBitStream(key.getString());
+					BitpoolStream bs = makeStreamObj(stream, child);
+					bs.init();
+				} catch (ApiException e) {
+					// TODO Auto-generated catch block
+					LOGGER.debug("", e);
+					node.removeChild(child);
+				}
+			} else if (child.getAction() == null && !child.isHidden()) {
+				node.removeChild(child);
+			}
+		}
 	}
 
 	private BitpoolStation getMe() {

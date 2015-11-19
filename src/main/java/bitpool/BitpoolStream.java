@@ -1,7 +1,6 @@
 package bitpool;
 
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -10,8 +9,6 @@ import io.swagger.client.api.LogsApi;
 import io.swagger.client.model.BitPoolInfrastructureDTOUpdateStreamDto;
 import io.swagger.client.model.BitPoolInfrastructureWebStreamLogsListModel;
 import io.swagger.client.model.BitPoolServerModelBitStreamEntity;
-import io.swagger.client.model.BitPoolServerModelBitStreamEntity.DataTypeEnum;
-import io.swagger.client.model.BitPoolServerModelSlog;
 import io.swagger.client.model.BitPoolServerModelValueEntity;
 
 import org.dsa.iot.dslink.node.Node;
@@ -53,6 +50,15 @@ public class BitpoolStream {
 	
 	void init() {
 		
+		if (station.pool.conn.node.getAttribute("Load data manually").getBool()) {
+			Action act = new Action(Permission.READ, new Handler<ActionResult>() {
+				public void handle(ActionResult event) {
+					remove();
+				}
+			});
+			node.createChild("unload").setAction(act).build().setSerializable(false);
+		}
+		
 		station.pool.conn.link.setupStream(this);
 		
 		GetHistory.initAction(node, new Db());
@@ -62,11 +68,11 @@ public class BitpoolStream {
 		
 		makeEditAction();
 		
-		ValueType vt = getValueType();
-		act = new Action(Permission.READ, new UploadLogHandler());
-		act.addParameter(new Parameter("Value", vt));
-		act.addParameter(new Parameter("Calculated", ValueType.BOOL));
-		node.createChild("upload log").setAction(act).build().setSerializable(false);
+//		ValueType vt = getValueType();
+//		act = new Action(Permission.READ, new UploadLogHandler());
+//		act.addParameter(new Parameter("Value", vt));
+//		act.addParameter(new Parameter("Calculated", ValueType.BOOL));
+//		node.createChild("upload log").setAction(act).build().setSerializable(false);
 		
 	}
 	
@@ -147,37 +153,37 @@ public class BitpoolStream {
 		}
 	}
 	
-	private ValueType getValueType() {
-		DataTypeEnum dt = DataTypeEnum.valueOf(node.getAttribute("Data type").getString().toUpperCase());
-		return (dt == DataTypeEnum.DECIMAL) ? ValueType.NUMBER : ValueType.STRING;
-	}
+//	private ValueType getValueType() {
+//		DataTypeEnum dt = DataTypeEnum.valueOf(node.getAttribute("Data type").getString().toUpperCase());
+//		return (dt == DataTypeEnum.DECIMAL) ? ValueType.NUMBER : ValueType.STRING;
+//	}
 	
-	private class UploadLogHandler implements Handler<ActionResult> {
-		public void handle(ActionResult event) {
-			Value val = event.getParameter("Value", getValueType());
-			boolean calculated = event.getParameter("Calculated", ValueType.BOOL).getBool();
-			BitPoolServerModelSlog data = new BitPoolServerModelSlog();
-			data.setCalculated(calculated);
-			data.setValue(val.getNumber().doubleValue());
-			data.setTimestamp(new Date());
-			List<BitPoolServerModelSlog> datalst = new ArrayList<BitPoolServerModelSlog>();
-			datalst.add(data);
-			
-//			BitPoolInfrastructureDTOStreamData data2 = new BitPoolInfrastructureDTOStreamData();
-//			data2.setStreamKey(node.getAttribute("Stream key").getString());
-//			data2.setValues(datalst);
-//			List<BitPoolInfrastructureDTOStreamData> data2lst = new ArrayList<BitPoolInfrastructureDTOStreamData>();
-//			data2lst.add(data2);
-			try {
-				String s = logsApi.logsUploadBitStream(node.getAttribute("Stream key").getString(), datalst);
-//				String s = logsApi.logsUploadBitStreams(data2lst);
-				LOGGER.debug(s);
-			} catch (ApiException e) {
-				LOGGER.debug("", e);
-				// TODO Auto-generated catch block
-			}
-		}
-	}
+//	private class UploadLogHandler implements Handler<ActionResult> {
+//		public void handle(ActionResult event) {
+//			Value val = event.getParameter("Value", getValueType());
+//			boolean calculated = event.getParameter("Calculated", ValueType.BOOL).getBool();
+//			BitPoolServerModelSlog data = new BitPoolServerModelSlog();
+//			data.setCalculated(calculated);
+//			data.setValue(val.getNumber().doubleValue());
+//			data.setTimestamp(new Date());
+//			List<BitPoolServerModelSlog> datalst = new ArrayList<BitPoolServerModelSlog>();
+//			datalst.add(data);
+//			
+////			BitPoolInfrastructureDTOStreamData data2 = new BitPoolInfrastructureDTOStreamData();
+////			data2.setStreamKey(node.getAttribute("Stream key").getString());
+////			data2.setValues(datalst);
+////			List<BitPoolInfrastructureDTOStreamData> data2lst = new ArrayList<BitPoolInfrastructureDTOStreamData>();
+////			data2lst.add(data2);
+//			try {
+//				String s = logsApi.logsUploadBitStream(node.getAttribute("Stream key").getString(), datalst);
+////				String s = logsApi.logsUploadBitStreams(data2lst);
+//				LOGGER.debug(s);
+//			} catch (ApiException e) {
+//				LOGGER.debug("", e);
+//				// TODO Auto-generated catch block
+//			}
+//		}
+//	}
 	
 	void poll() {
 		
