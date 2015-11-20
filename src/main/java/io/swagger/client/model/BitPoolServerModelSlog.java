@@ -21,7 +21,7 @@ public class BitPoolServerModelSlog   {
   /**
    **/
   @ApiModelProperty(value = "")
-  @JsonProperty("Timestamp")
+  @JsonProperty("Ts")
   public Date getTimestamp() {
     return (timestamp == null) ? null : (Date) timestamp.clone();
   }
@@ -33,7 +33,7 @@ public class BitPoolServerModelSlog   {
   /**
    **/
   @ApiModelProperty(value = "")
-  @JsonProperty("Value")
+  @JsonProperty("Val")
   public Double getValue() {
     return value;
   }
