@@ -90,7 +90,7 @@ public class BitpoolLink {
 			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
 			boolean manLoad = event.getParameter("Load data manually", ValueType.BOOL).getBool();
 			
-			String name = StringUtils.filterBannedChars(email);
+			String name = StringUtils.encodeName(email);
 			
 			Node child = node.createChild(name).build();
 			child.setAttribute("Email", new Value(email));

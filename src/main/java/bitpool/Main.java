@@ -19,7 +19,6 @@ public class Main extends DSLinkHandler {
 	private DSLink link;
 	
 	public static void main(String[] args) {
-		//args = new String[] { "-b", "http://localhost:8080/conn", "-l", "debug" };
 		DSLinkFactory.start(args, new Main());
 	}
 	
@@ -27,7 +26,11 @@ public class Main extends DSLinkHandler {
 	public boolean isResponder() {
 		return true;
 	}
-	
+
+    public void onResponderConnected(DSLink link) {
+        LOGGER.info("Connected");
+    }
+
 	@Override
 	public void onResponderInitialized(DSLink link) {
 		LOGGER.info("Initialized");

@@ -186,7 +186,7 @@ public class BitpoolConn {
 			double interval = event.getParameter("Polling interval", ValueType.NUMBER).getNumber().doubleValue();
 			boolean manLoad = event.getParameter("Load data manually", ValueType.BOOL).getBool();
 			
-			String name = StringUtils.filterBannedChars(email);
+			String name = StringUtils.encodeName(email);
 			
 			if (!name.equals(node.getName())) {
 				Node child = link.node.createChild(name).build();
